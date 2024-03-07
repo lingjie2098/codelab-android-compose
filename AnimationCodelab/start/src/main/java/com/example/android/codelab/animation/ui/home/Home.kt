@@ -20,12 +20,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.calculateTargetValue
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -133,6 +135,8 @@ import com.example.android.codelab.animation.ui.Seashell
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 private enum class TabPage {
     Home, Work
@@ -190,6 +194,10 @@ fun Home() {
     // The background color. The value is changed by the current tab.
     // TODO 1: Animate this color change.
     val backgroundColor = if (tabPage == TabPage.Home) Seashell else GreenLight
+    // LingJie's Mark: backgroundColor会从Seashell过渡到GreenLight，手机性能越好，backgroundColor的过渡值越多（我猜的）。
+//    val backgroundColor by animateColorAsState(
+//        targetValue = if (tabPage == TabPage.Home) Seashell else GreenLight,
+//        label = "background color")
 
     // The coroutine scope for event handlers calling suspend functions.
     val coroutineScope = rememberCoroutineScope()
@@ -308,6 +316,10 @@ private fun HomeFloatingActionButton(
             // Toggle the visibility of the content with animation.
             // TODO 2-1: Animate this visibility change.
             if (extended) {
+                // LingJie's Mark: 默认情况下，AnimatedVisibility 会以淡入和展开的方式显示元素，以淡出和缩小的方式隐藏元素。
+//            AnimatedVisibility(
+//                visible = extended
+//            ) {
                 Text(
                     text = stringResource(R.string.edit),
                     modifier = Modifier
@@ -327,6 +339,28 @@ private fun EditMessage(shown: Boolean) {
     //           disappearance.
     AnimatedVisibility(
         visible = shown
+        // LingJie's Mark: 使用slideXxxVertically默认效果
+//        ,enter = slideInVertically(),
+//        exit = slideOutVertically()
+        // LingJie's Mark: 使用slideXxxVertically自定义效果
+//        , enter = slideInVertically(
+//            // Enters by sliding down from offset -fullHeight to 0.
+//            initialOffsetY = { fullHeight -> -fullHeight },
+//            animationSpec = tween(
+//                // LingJie's Mark: 时长为 150 毫秒，加/减速选项为 LinearOutSlowInEasing（以峰值速度开始，静止结束）。
+//                durationMillis = 150,
+//                easing = LinearOutSlowInEasing
+//            )
+//        ),
+//        exit = slideOutVertically(
+//            // Exits by sliding up from offset 0 to -fullHeight.
+//            targetOffsetY = { fullHeight -> -fullHeight },
+//            animationSpec = tween(
+//                // LingJie's Mark: 时长为 250 毫秒，加/减速选项为 FastOutLinearInEasing（以静止开始，峰值速度结束）。
+//                durationMillis = 250,
+//                easing = FastOutLinearInEasing
+//            )
+//        )
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -399,6 +433,8 @@ private fun TopicRow(topic: String, expanded: Boolean, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
+                // LingJie's Mark: 内容跳出来没有那么突兀。
+//                .animateContentSize(...)
         ) {
             Row {
                 Icon(
@@ -485,6 +521,81 @@ private fun HomeTabIndicator(
     val indicatorLeft = tabPositions[tabPage.ordinal].left
     val indicatorRight = tabPositions[tabPage.ordinal].right
     val color = if (tabPage == TabPage.Home) PaleDogwood else Green
+    // LingJie's Mark: Tab指示器上的框框移动的动画。
+    // 多值动画：在状态发生变化时有多个动画值要一起发生变化。
+    // 设置一个transition并使用targetState提供的目标对其进行更新。当targetState更改时，transition会朝着为新targetState指定的目标值运行其所有波及的动画值。
+    // 可以使用transition动态添加子动画：animateValue、animateFloat、animateDp、animateOffset、animateInt、animateIntOffset、animateSize、animateIntSize、animateRect
+//    val transition = updateTransition(
+//        targetState = tabPage,
+//        label = "Tab indicator"
+//    )
+//    val indicatorLeft by transition.animateDp(
+//        label = "Indicator left"
+//    ) { page ->
+//        tabPositions[page.ordinal].left
+//    }
+//    val indicatorRight by transition.animateDp(
+//        label = "Indicator right"
+//    ) { page ->
+//        tabPositions[page.ordinal].right
+//    }
+//    val color by transition.animateColor(
+//        label = "Border color"
+//    ) { page ->
+//        if (page == TabPage.Home) PaleDogwood else Green
+//    }
+    // LingJie's Mark: 指定 transitionSpec 参数来自定义动画行为。例如，我们可以让靠近目标页面的一边比另一边移动得更快来实现指示器的弹性效果。可以在 transitionSpec lambda 中使用 isTransitioningTo infix 函数来确定状态变化的方向。
+//    val transition = updateTransition(
+//        tabPage,
+//        label = "Tab indicator"
+//    )
+//    val indicatorLeft by transition.animateDp(
+//        transitionSpec = {
+//            if (TabPage.Home isTransitioningTo TabPage.Work) {
+//                // LingJie's Mark: spring：弹性
+//                // Indicator moves to the right.
+//                // The left edge moves slower than the right edge.左边缘回来的慢一点。
+//                spring(
+//                    stiffness = Spring.StiffnessVeryLow
+//                )
+//            } else {
+//                // Indicator moves to the left.
+//                // The left edge moves faster than the right edge.
+//                spring(
+//                    stiffness = Spring.StiffnessMedium
+//                )
+//            }
+//        },
+//        label = "Indicator left"
+//    ) { page ->
+//        tabPositions[page.ordinal].left
+//    }
+//    val indicatorRight by transition.animateDp(
+//        transitionSpec = {
+//            if (TabPage.Home isTransitioningTo TabPage.Work) {
+//                // Indicator moves to the right
+//                // The right edge moves faster than the left edge.
+//                spring(
+//                    stiffness = Spring.StiffnessMedium
+//                )
+//            } else {
+//                // Indicator moves to the left.
+//                // The right edge moves slower than the left edge.
+//                spring(
+//                    stiffness = Spring.StiffnessVeryLow
+//                )
+//            }
+//        },
+//        label = "Indicator right"
+//    ) { page ->
+//        tabPositions[page.ordinal].right
+//    }
+//    val color by transition.animateColor(
+//        label = "Border color"
+//    ) { page ->
+//        if (page == TabPage.Home) PaleDogwood else Green
+//    }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -571,6 +682,22 @@ private fun WeatherRow(
 private fun LoadingRow() {
     // TODO 5: Animate this value between 0f and 1f, then back to 0f repeatedly.
     val alpha = 1f
+    // LingJie's Mark: alpha在0~1~0之间重复很多次。
+//    val infiniteTransition = rememberInfiniteTransition()
+//    val alpha by infiniteTransition.animateFloat(
+//        initialValue = 0f,
+//        targetValue = 1f,
+//        animationSpec = infiniteRepeatable(
+//            animation = keyframes {
+//                durationMillis = 1000   // LingJie's Mark: 每次持续时间1s
+//                0.7f at 500 // LingJie's Mark: 500ms的时候，alpha为0.7f
+//            },
+//            // LingJie's Mark: Reverse：使得initialValue-->targetValue-->initialValue
+//            repeatMode = RepeatMode.Reverse
+//        ),
+//        label = "alpha"
+//    )
+
     Row(
         modifier = Modifier
             .heightIn(min = 64.dp)
@@ -634,36 +761,83 @@ private fun Modifier.swipeToDismiss(
     onDismissed: () -> Unit
 ): Modifier = composed {
     // TODO 6-1: Create an Animatable instance for the offset of the swiped element.
+    // LingJie's Mark: 根据触摸事件的位置和速度来更新项的位置。
+//    val offsetX = remember { Animatable(0f) }
+    // LingJie's Mark: 手势输入，pointerInput内可以调用PointerInputScope.awaitPointerEventScope(...)
     pointerInput(Unit) {
         // Used to calculate a settling position of a fling animation.
         val decay = splineBasedDecay<Float>(this)
         // Wrap in a coroutine scope to use suspend functions for touch events and animation.
         coroutineScope {
             while (true) {
+                // LingJie's Mark: awaitPointerEventScope 是一个挂起函数，可以等待用户输入事件并针对这些事件作出响应。这里等待 手指按下 和 水平拖拽 事件。
                 // Wait for a touch down event.
                 val pointerId = awaitPointerEventScope { awaitFirstDown().id }
                 // TODO 6-2: Touch detected; the animation should be stopped.
+//                offsetX.stop()  // LingJie's Mark: 如果动画当前正在运行，我们应将其拦截。可以通过对 Animatable 调用 stop 来实现此目的。请注意，如果动画未运行，系统会忽略该调用。
                 // Prepare for drag events and record velocity of a fling.
+                // LingJie's Mark: VelocityTracker 用于计算用户从左向右移动的速度。
                 val velocityTracker = VelocityTracker()
                 // Wait for drag events.
                 awaitPointerEventScope {
                     horizontalDrag(pointerId) { change ->
                         // TODO 6-3: Apply the drag change to the Animatable offset.
+                        // LingJie's Mark: 我们会持续接收到拖动事件。必须将触摸事件的位置同步到动画值中。
+                        // Get the drag amount change to offset the item with
+//                        val horizontalDragOffset = offsetX.value + change.positionChange().x
+                        // Need to call this in a launch block in order to run it separately outside of the awaitPointerEventScope
+//                        launch {
+//                            // Instantly set the Animable to the dragOffset to ensure its moving
+//                            // as the user's finger moves
+//                            // LingJie's Mark: snapTo：对齐
+//                            offsetX.snapTo(
+//                                targetValue = horizontalDragOffset
+//                            )
+//                        }
                         // Record the velocity of the drag.
                         velocityTracker.addPosition(change.uptimeMillis, change.position)
                         // Consume the gesture event, not passed to external
+                        // LingJie's Mark: 消费掉拖拽事件，不向上传递。
                         if (change.positionChange() != Offset.Zero) change.consume()
                     }
                 }
+                // LingJie's Mark: 元素刚刚被松开和快速滑动的位置。
                 // Dragging finished. Calculate the velocity of the fling.
                 val velocity = velocityTracker.calculateVelocity().x
                 // TODO 6-4: Calculate the eventual position where the fling should settle
                 //           based on the current offset value and velocity
+                // Add this line to calculate where it would end up with
+                // the current velocity and position
+                // LingJie's Mark: decay：衰变。这行代码可以解释为offsetX.value位置velocity速度下，元素能以惯性滑动多远。
+//                val targetOffsetX = decay.calculateTargetValue(
+//                    initialValue = offsetX.value,
+//                    initialVelocity = velocity
+//                )
                 // TODO 6-5: Set the upper and lower bounds so that the animation stops when it
                 //           reaches the edge.
+                // LingJie's Mark: 我们需要为 offsetX 设置值的上下界限，使其在到达界限时立即停止（因为我们不希望 offsetX 越过这两个值）。
+//                offsetX.updateBounds(
+//                    lowerBound = -size.width.toFloat(),
+//                    upperBound = size.width.toFloat()
+//                )
                 launch {
                     // TODO 6-6: Slide back the element if the settling position does not go beyond
                     //           the size of the element. Remove the element if it does.
+//                    if (targetOffsetX.absoluteValue <= size.width) {
+//                        // Not enough velocity; Slide back.
+//                        offsetX.animateTo(
+//                            targetValue = 0f,
+//                            initialVelocity = velocity
+//                        )
+//                    } else {
+//                        // Enough velocity to slide away the element to the edge.
+//                        offsetX.animateDecay(
+//                            initialVelocity = velocity,
+//                            animationSpec = decay
+//                        )
+//                        // The element was swiped away.
+//                        onDismissed()
+//                    }
                 }
             }
         }
@@ -671,6 +845,8 @@ private fun Modifier.swipeToDismiss(
         .offset {
             // TODO 6-7: Use the animating offset value here.
             IntOffset(0, 0)
+            // LingJie's Mark: 对元素应用偏移。此操作会将屏幕上的元素移至手势或动画生成的值。
+//            IntOffset(offsetX.value.roundToInt(), 0)
         }
 }
 
