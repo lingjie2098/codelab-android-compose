@@ -35,6 +35,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.compose.rally.ui.accounts.AccountsScreen
+import com.example.compose.rally.ui.accounts.SingleAccountScreen
 import com.example.compose.rally.ui.bills.BillsScreen
 import com.example.compose.rally.ui.components.RallyTabRow
 import com.example.compose.rally.ui.overview.OverviewScreen
@@ -94,18 +95,42 @@ fun RallyApp() {
                         },
                         onClickSeeAllBills = {
                             navController.navigateSingleTopTo(Bills.route)
+                        },
+                        onAccountClick = { accountType ->
+                            navController.navigateToSingleAccount(
+                                accountType = accountType
+                            )
                         }
                     )
                 }
                 composable(
                     route = Accounts.route  // LingJie's Mark: ③
                 ) {
-                    AccountsScreen()
+                    AccountsScreen(
+                        onAccountClick = { accountType ->
+                            navController.navigateToSingleAccount(
+                                accountType = accountType
+                            )
+                        }
+                    )
                 }
                 composable(
                     route = Bills.route     // LingJie's Mark: ④
                 ) {
                     BillsScreen()
+                }
+                composable(
+                    route = SingleAccount.routeWithArgs,
+                    arguments = SingleAccount.arguments
+                ) { navBackStackEntry ->
+                    // Retrieve the passed argument
+                    val accountType =
+                        navBackStackEntry.arguments?.getString(SingleAccount.accountTypeArg)
+
+                    // Pass accountType to SingleAccountScreen
+                    SingleAccountScreen(
+                        accountType = accountType
+                    )
                 }
             }
         }
@@ -127,3 +152,7 @@ fun NavHostController.navigateSingleTopTo(route: String) =
         // 确定此导航操作是否应恢复 PopUpToBuilder.saveState 或 popUpToSaveState 属性之前保存的任何状态。请注意，如果之前未使用要导航到的目的地 ID 保存任何状态，此项不会产生任何影响。在本应用中，这意味着，重按同一标签页会保留屏幕上之前的数据和用户状态，而无需重新加载。
         restoreState = true
     }
+
+private fun NavHostController.navigateToSingleAccount(accountType: String) {
+    this.navigateSingleTopTo("${SingleAccount.route}/$accountType")
+}
