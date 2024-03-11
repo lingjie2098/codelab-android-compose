@@ -22,6 +22,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.material.MaterialTheme
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.app.ShareCompat
 import androidx.core.widget.NestedScrollView
@@ -111,10 +112,18 @@ class PlantDetailFragment : Fragment() {
                 }
             }
 
-            composeView.setContent {
-                // You're in Compose world!
-                MaterialTheme {
-                    PlantDetailDescription(plantDetailViewModel)
+            composeView.apply {
+                // LingJie's Mark: composeView 遵循 fragment 的视图生命周期
+                setViewCompositionStrategy(
+                    // LingJie's Mark:
+                    // 在 fragment 的 LifecycleOwner 被销毁时使用 DisposeOnViewTreeLifecycleDestroyed 策略处置组合。
+                    // 由于 PlantDetailFragment 包含进入和退出过渡（如需了解详情，请查看 nav_garden.xml），并且我们稍后会在 Compose 中使用 View 类型，因此我们需要确保 ComposeView 使用 DisposeOnViewTreeLifecycleDestroyed 策略。不过，在 fragment 中使用 ComposeView 时，最好始终设置此策略。
+                    ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+                )
+                setContent {
+                    MaterialTheme {
+                        PlantDetailDescription(plantDetailViewModel)
+                    }
                 }
             }
         }
